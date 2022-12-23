@@ -5,18 +5,18 @@
  * contain prod config
  */
 
-const PASSWORD = "JellyBean99";
-const EMAIL = "mvandi.yt@gmail.com";
 
 const apiAccessClientAddresses = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:5000",
     "localhost",
+    "http://mail.google.com",
+    "https://mail.google.com",
+    "http://inbox.google.com",
+    "https://inbox.google.com",
 ];
 
 module.exports = {
     apiAccessClientAddresses,
-    PASSWORD,
-    EMAIL,
 };

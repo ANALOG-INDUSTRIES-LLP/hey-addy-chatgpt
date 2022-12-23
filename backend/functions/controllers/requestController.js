@@ -3,7 +3,6 @@
  */
 
 function requestContainsAllRequiredData(request, dataType, requiredParams) {
-
     for (let i = 0; i < requiredParams.length; i++) {
         const param = requiredParams[i];
         if (!request[dataType][param]) return false;
@@ -13,4 +12,4 @@ function requestContainsAllRequiredData(request, dataType, requiredParams) {
 
 module.exports = {
     requestContainsAllRequiredData,
-}
+};

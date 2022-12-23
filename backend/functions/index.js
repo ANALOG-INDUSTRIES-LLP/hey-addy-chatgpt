@@ -1,8 +1,10 @@
 const cors = require("cors");
 const express = require("express");
 const functions = require("firebase-functions");
-const {apiAccessClientAddresses, EMAIL, PASSWORD} = require("./config/config");
+const {apiAccessClientAddresses} = require("./config/config");
 const bodyParser = require("body-parser");
+
+const authTriggers = require("./triggers/authentication");
 
 const api = express();
 
@@ -19,5 +21,9 @@ api.get("/", async (request, response) => {
     response.status(200).json({success: true});
 });
 api.use("/thread", require("./routes/thread"));
+api.use("/user", require("./routes/user"));
 
 exports.api = functions.https.onRequest(api);
+
+// Exporting all automated functions
+exports.addNewUserToDb = authTriggers.addNewUserToDb;
