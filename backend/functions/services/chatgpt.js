@@ -14,9 +14,10 @@ class ChatGPTClient {
         const body = {
             prompt: prompt,
         };
-        const response = await axios.post(url, JSON.stringify(body), {
+        const response = await axios.post(url, body, {
             headers: {
                 "Bypass-Tunnel-Reminder": true,
+                "ngrok-skip-browser-warning": true,
             },
         }).then(async (response) => {
             if (response.data.success) {

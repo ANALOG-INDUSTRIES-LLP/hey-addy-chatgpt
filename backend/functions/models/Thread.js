@@ -11,7 +11,7 @@ class Thread {
         let responseText = response;
 
         if (!responseText) {
-            // TODO: throw some error
+            throw new Error("GetResponseFailed");
         }
         if (responseText.length && responseText.length > 1 &&
             (responseText.slice(0, 1) == "\"" ||
