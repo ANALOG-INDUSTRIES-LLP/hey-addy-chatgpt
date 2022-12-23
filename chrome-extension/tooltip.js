@@ -2,7 +2,18 @@ let authToken = null;
 let clickedSentiment = null;
 let globalThread = null;
 let globalSentiment = null;
-let API_URL = "http://localhost:5001/hey-addy-chatgpt/us-central1/api";
+let emailMessageBox = null;
+let API_URL = "https://hey-addy.web.app";
+let currentUser = null;
+
+chrome.storage.sync.get("user", async function(data) {
+    if (!data.user) {
+        currentUser = null;
+        return;
+    }
+    currentUser = data.user;
+});
+
 
 window.onload = async function() {
     getAuthToken() // Get gmail auth token
@@ -126,6 +137,7 @@ function addedNodes(mutations) {
 function addTooltipToElements(selector, settings, observer) {
     let messageBox = document.querySelector(selector);
     if (messageBox !== null) {
+        emailMessageBox = messageBox;
         // Get parent div 2 nodes up. First node does not have ID
         // to select
         const parentDiv = messageBox.parentNode.parentNode;
@@ -133,6 +145,9 @@ function addTooltipToElements(selector, settings, observer) {
 
         const parent = document.getElementById(parentID);
         const toolTipDiv = document.createElement("div");
+        // Make emailMessageBox allow line breaks
+        messageBox.style.whiteSpace = "pre-wrap";
+
         // Configure ToolTipDiv
         configureToolTipDiv(toolTipDiv);
         // Create the Sentiment Elements
@@ -143,9 +158,9 @@ function addTooltipToElements(selector, settings, observer) {
             toolTipDiv
         )
         findEmailThread();
+
         return true;
     } else {
-        // alert("no message box");
         return false;
     }
 }
@@ -221,7 +236,13 @@ function filterThread(thread) {
 
 async function fetchThread(threadID) {
     // Check if we have an auth token
-    if (authToken == null) throw new Error("AuthTokenIsNull");
+    if (authToken == null) {
+        alert(`Addy.ai\n
+            Please Sign In To Your Google Account
+        `)
+        getAuthToken();
+        throw new Error("AuthTokenIsNull");
+    }
     const config = {
         method: 'GET',
         async: true,
@@ -244,9 +265,9 @@ async function fetchThread(threadID) {
 }
 
 async function fetchSuggestion(requestData, endpoint) {
-    // TODO: Throttle requests by adding identity or user headers
+    // TODO: When there's a 401, ask user to login
     const data = requestData;
-    let suggestion = {};
+    let suggestion = "";
     await fetch(endpoint, {
         method: 'POST',
         body: JSON.stringify(data),
@@ -254,8 +275,7 @@ async function fetchSuggestion(requestData, endpoint) {
     .then((response) => response.json())
     .then((data) => {
         if (data.success) {
-            // Successful response
-            console.log(data);
+            suggestion = data.response;
         }
     })
     .catch((error) => {
@@ -276,34 +296,97 @@ function configureToolTipDiv(toolTipDiv) {
     toolTipDiv.style.width = "100%"; 
 }
 
-function createSentimentElementsInTooltip(sentiments, toolTip) {
-    for (let i = 0; i < sentiments.length; i++) {
-        if(i > 4) continue;
-        let sentiment = sentiments[i] // Full object with attributes
-        const sentimentElement = document.createElement("div");
-        sentimentElement.classList.add("sentiment-button");
-        const HTMLValue = sentiment.html +
-            "&nbsp;"+
-            stringSentenceCase(sentiment.tone);
-        sentimentElement.innerHTML = HTMLValue;
-        const sentimentID = "hey-addy-sentiment-" + i.toString();
-        sentimentElement.setAttribute("id", sentimentID);
-        sentimentElement.style = {};
-        // Add styles
-        addUnclickedStylesForSentimentButton(sentimentElement);
-
-        // Add mouse over and leave behavior
-        setSentimentMouseHoverBehavior(sentimentElement);
-        setSentimentMouseOutBehavior(sentimentElement);
-
-        // Add a listener to the sentiment element
-        addSentimentOnClickListener(sentimentElement, sentiment);
-        
-        toolTip.append(sentimentElement); // Add sentiment
+function titleCase(str) {
+    var splitStr = str.toLowerCase().split(' ');
+    for (var i = 0; i < splitStr.length; i++) {
+        splitStr[i] = splitStr[i].charAt(0).toUpperCase() + splitStr[i].substring(1);     
     }
+    return splitStr.join(' '); 
+}
 
-    // Create  the write button
-    createWriteButtonInTooltip(toolTip);
+function swapSentiments(sentiment1, sentiment2) {
+    // Find both indices and swap;
+    const index1 = findSentimentIndex(sentiments, sentiment1);
+    const index2 = findSentimentIndex(sentiments, sentiment2);
+
+    if ((index1 == null || index2 == null) || index2 < 4) {
+        return sentiments;
+    }
+    // Both indices are available, swap
+    let temp = sentiments[index1];
+    sentiments[index1] = sentiments[index2];
+    sentiment2[index2] = temp;
+    return sentiments;
+
+}
+
+function findSentimentIndex(sentiments, value) {
+    let index = null;
+    for (let i = 0; i < sentiments.length; i++) {
+        if (sentiments[i].tone == value) {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+var clickEvent = new MouseEvent("click", {
+    "view": window,
+    "bubbles": true,
+    "cancelable": false
+});
+
+function createSentimentElementsInTooltip(sentiments, toolTip) {
+    // Check if there's a default sentiment
+    chrome.storage.sync.get("defaultTone", async function(data) {
+        const defaultTone = data.defaultTone;
+        if (defaultTone) {
+            // Set global sentiment to default tone
+            globalSentiment = defaultTone;
+            // Render default tone in UI
+            // Swap first sentiment in list with default sentiment
+            const firstSentiment = sentiments[0].tone;
+            if (firstSentiment !== defaultTone) {
+                // Swap
+                sentiments = swapSentiments(firstSentiment,
+                    defaultTone);
+            }
+
+        }
+        for (let i = 0; i < sentiments.length; i++) {
+            if(i > 4) break;
+            let sentiment = sentiments[i] // Full object with attributes
+            const sentimentElement = document.createElement("div");
+            sentimentElement.classList.add("sentiment-button");
+            const HTMLValue = sentiment.html +
+                "&nbsp;"+
+                titleCase(sentiment.tone);
+            sentimentElement.innerHTML = HTMLValue;
+            const sentimentID = "hey-addy-sentiment-" + i.toString();
+            sentimentElement.setAttribute("id", sentimentID);
+            sentimentElement.style = {};
+            // Add styles
+            addUnclickedStylesForSentimentButton(sentimentElement);
+
+            // Add mouse over and leave behavior
+            setSentimentMouseHoverBehavior(sentimentElement);
+            setSentimentMouseOutBehavior(sentimentElement);
+
+            // Add a listener to the sentiment element
+            addSentimentOnClickListener(sentimentElement, sentiment);
+            
+            toolTip.append(sentimentElement); // Add sentiment
+            // Click on the default sentiment
+            if (sentiment.tone == defaultTone) {
+                sentimentElement.dispatchEvent(clickEvent);
+            }
+        }
+
+        // Create  the write button
+        createWriteButtonInTooltip(toolTip);
+        
+    });
 }
 
 function createWriteButtonInTooltip(toolTip) {
@@ -321,32 +404,62 @@ function createWriteButtonInTooltip(toolTip) {
     // Add a listener to the sentiment element
     addWriteButtonOnClickListener(writeButton, {});
     toolTip.append(writeButton);
-    
 }
 
 // Onclick listener for write button
 async function addWriteButtonOnClickListener(writeButton) {
     writeButton.addEventListener("click", async () => {
-       // Update styles
-       addClickedStylesForWriteButton(writeButton);
-        // Make request
-        if (globalSentiment == null && globalThread == null) {
-            // TODO: Show user an error
-            return;
-        }
-        const requestData = {
-            thread: globalThread,
-            sentiment: globalSentiment,
-        }
-        // Fetch suggestion
-        const suggestion = await fetchSuggestion(
-            requestData,
-            `${API_URL}/thread/response`
-        )
-        console.log("suggestion ", suggestion);
-
-        
+        // Update styles
+        addClickedStylesForWriteButton(writeButton);
+        // Check if user has invite
+        chrome.storage.sync.get("claimedInvite", async function(data) {
+            if (!data.claimedInvite) {
+                // TODO: View for no invite
+                alert("Addy.ai \n\nNo invite code set.\nPlease open extension and enter your invite code");
+                return;
+            }
+            // Make request
+            if (globalSentiment == null && globalThread == null) {
+                // TODO: Show user an error
+                alert("Sorry something went wrong. Are you signed in?");
+                return;
+            }
+            const uid = currentUser == null ? undefined : currentUser.uid;
+            const requestData = {
+                thread: globalThread,
+                sentiment: globalSentiment,
+                userID: uid,
+            }
+            // Fetch suggestion
+            const suggestion = await fetchSuggestion(
+                requestData,
+                `${API_URL}/thread/response`
+            )
+            if (suggestion && suggestion.length && suggestion.length > 1) {
+                console.log("sigg", suggestion);
+                typeSuggestionInMessageBox(
+                    emailMessageBox,
+                    suggestion,
+                    50, // 50ms, delay for each character typed
+                )
+            }
+        });
     });
+}
+
+function typeSuggestionInMessageBox(messageBox, text, typingSpeed) {
+    // Clear Message box
+    messageBox.innerHTML = "<pre></pre>";
+
+    var i = 0;
+    function typer() {
+        if (i < text.length) {
+            messageBox.innerHTML += text.charAt(i);
+            i++;
+            setTimeout(typer, typingSpeed);
+        }
+    }
+    typer();
 }
 
 function setWriteButtonMouseHoverBehavior(writeButton) {

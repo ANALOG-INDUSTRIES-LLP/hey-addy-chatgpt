@@ -11,6 +11,8 @@
   <link rel="stylesheet" href="styles.css">
   <link rel="stylesheet" href="css/style.css">
 
+  <script type="text/javascript" src="invite-code-init.js"></script>
+
   <script src="cdn-scripts/firebase-app-7-19-1.js"></script>
   <script src="cdn-scripts/firebase-auth-7-19-1.js"></script>
   <script src="cdn-scripts/firebaseui-3-5-2.js"></script>
@@ -25,27 +27,54 @@
 <body>
 
     <div class="header">
-        <p id="header-text">Hey <mark id="chat-header-text">Addy</mark></p>
+        <p id="header-text"><mark id="chat-header-text">Addy.ai</mark></p>
     </div>
 
-    <div class="container-fluid" id="home-container">
-        <div class="row">
-            <!-- <div class="col-md-6 center-elements">
+    <div class="container-fluid center-elements" id="home-container">
+        <div class="row full-parent">
 
-                <img id="home-img" style="width: 50px; height: 50px;" src="assets/people_talking.jpg" alt="People Chatting">
-
-            </div> -->
-            <br/>
-
-            <div class="col-md-12 center-elements">
-                <br/>
+            <div class="col-md-12 center-elements full-parent">
+                <!-- <br/>
                 <br>
                 <br>
                 <button id="sign-out" class="login-button">
                     Sign Out
-                </button>
+                </button> -->
+
+                <div id="invite-code-div" class="center-elements">
+                    <div>
+                        <p class="title-text">Enter invite code</p>
+                        <p class="helper-text">Addy.ai is in closed beta. Enter your 4-digit invite code to get access</p>
+                    </div>
+                    <fieldset>
+                    <div class="multi-input-div">
+                        <input type="number" pattern="[0-9]*" min="0" max="9" maxlength="1"  value="" inputtype="numeric" id="otc-1" required>
+                        <input type="number" pattern="[0-9]*" min="0" max="9" maxlength="1"  value="" inputtype="numeric" id="otc-2" required>
+                        <input type="number" pattern="[0-9]*" min="0" max="9" maxlength="1"  value="" inputtype="numeric" id="otc-3" required>
+                        <input type="number" pattern="[0-9]*" min="0" max="9" maxlength="1"  value="" inputtype="numeric" id="otc-4" required>
+                    </div>
+                    </fieldset>
+                    <p class="error-text" id="submit-error-text">&nbsp;</p>
+                    <br>
+
+                    <div class="full-parent-width">
+                        <button id="get-access-button" class="login-button">
+                            Submit
+                        </button>
+                    </div>
+
+                </div>
 
             </div>
+
+        </div>
+    </div>
+
+    <div class="full-parent-width footer">
+        <div class="full-parent-width horizontal-flex space-around">
+            <p class="footer-text underline-text" id="sign-out-btn">Sign out</p>
+            <p class="footer-text">Have Feedback? 
+                <mark class="underline-text" id="contact-me-link">Contact Michael</mark></p> 
         </div>
     </div>
 

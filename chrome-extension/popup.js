@@ -47,12 +47,6 @@ firebase.auth().onAuthStateChanged(function (user) {
         window.location.replace('./main.html');
     } else {
         // Show login
-        // const signInDiv = document.getElementById("sign-in-options");
-        // const spinner = document.getElementById("login-loading");
-
-        // if (signInDiv) signInDiv.style.display = "block";
-        // if (spinner) spinner.style.display = "none";
-
         ui.start('#sign-in-options', uiConfig);
     }
 });
