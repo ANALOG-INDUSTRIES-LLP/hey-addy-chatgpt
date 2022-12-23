@@ -9,7 +9,6 @@ class ChatGPT {
         const response = await (await chatGPTAPI).sendMessage(
             prompt,
         );
-        console.log("response", response);
         const responseText = response.response;
         return responseText;
     }
