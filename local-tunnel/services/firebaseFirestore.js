@@ -24,7 +24,7 @@ class Firestore {
             }
             return doc.data();
         }).catch((error) => {
-            console.error("Error: Approve Project Failed to get document " +
+            console.error("Error: Failed to get document " +
             "id " + docId + " error: ", JSON.stringify(error));
             return undefined;
         });
