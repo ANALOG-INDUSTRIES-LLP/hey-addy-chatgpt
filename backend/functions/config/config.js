@@ -15,6 +15,7 @@ const apiAccessClientAddresses = [
     "https://mail.google.com",
     "http://inbox.google.com",
     "https://inbox.google.com",
+    "chrome-extension://gldadickgmgciakdljkcpbdepehlilfn",
 ];
 
 module.exports = {
