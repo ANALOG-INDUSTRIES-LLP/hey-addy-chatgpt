@@ -6,14 +6,19 @@ let emailMessageBox = null;
 let API_URL = "https://hey-addy.web.app";
 let currentUser = null;
 let currentlyWriting = false;
+let onGoingOAuthAsks = 0;
 
-chrome.storage.sync.get("user", async function(data) {
-    if (!data.user) {
-        currentUser = null;
-        return;
-    }
-    currentUser = data.user;
-});
+function getCurrentUser() {
+    chrome.storage.sync.get("user", async function(data) {
+        if (!data.user) {
+            currentUser = null;
+            return;
+        }
+        currentUser = data.user;
+    });
+}
+getCurrentUser();
+
 
 
 window.onload = async function() {
@@ -71,9 +76,14 @@ const sentiments = [
 
 function getAuthToken() {
     // Get auth token from background.js
+    if (authToken !== null) return;
+    if (onGoingOAuthAsks > 5) return;
     chrome.runtime.sendMessage({ message: "get-auth-token" }, function (response) {
+        onGoingOAuthAsks += 1;
         if (response.message && response.message == "success") {
             authToken = response.token;
+            onGoingOAuthAsks = 0;
+            if (globalThread == null) findEmailThread();
         }
     });
 }
@@ -170,8 +180,9 @@ async function findEmailThread() {
     const legacyThreadElement = document.querySelector('[data-legacy-thread-id]');
     if (!legacyThreadElement || legacyThreadElement == null
         || legacyThreadElement == undefined) {
-        // TODO: Send a message that legacy thread data not found
+        globalThread == null;
     }
+    if (globalThread !== null) return;
 
     const threadID = legacyThreadElement.getAttribute('data-legacy-thread-id');
     let thread = await fetchThread(threadID);
@@ -187,10 +198,6 @@ function filterThread(thread) {
     const messages = thread.messages;
     if (messages == undefined || !messages.length ||
         messages.length == undefined || messages.length < 1) {
-        alert(`Addy.ai\n
-            Please authorize addy.ai to use this GMail account
-        `)
-        getAuthToken();
         throw new Error("NoMessagesInThread");
     }
     // Iterate through messages
@@ -242,9 +249,6 @@ function filterThread(thread) {
 async function fetchThread(threadID) {
     // Check if we have an auth token
     if (authToken == null) {
-        alert(`Addy.ai\n
-            Please Sign In To Your Google Account
-        `)
         getAuthToken();
         throw new Error("AuthTokenIsNull");
     }
@@ -517,20 +521,26 @@ async function addWriteButtonOnClickListener(writeButton) {
 
         // Update styles
         addClickedStylesForWriteButton(writeButton);
+        if(currentUser == null) getCurrentUser();
         // Check if user has invite
         chrome.storage.sync.get("claimedInvite", async function(data) {
             if (!data.claimedInvite) {
-                alert("Addy.ai \n\nNo invite code set.\nPlease open extension and enter your invite code");
+                chrome.runtime.sendMessage({message: "open-options"});
                 return;
             }
             if (globalSentiment == null) {
                 alert("Addy.ai \n\nPlease select a tone");
                 return;
             }
+            if (authToken == null) {
+                alert("Addy.ai \nA Google OAuth window should open. \nPlease authorize Addy.ai to use this GMail account");
+                getAuthToken();
+                return;
+            }
             // Make request
             if (globalThread == null) {
                 alert("Sorry something went wrong. Are you signed in?");
-                getAuthToken();
+                findEmailThread();
                 return;
             }
             
