@@ -1,10 +1,11 @@
 let authToken = null;
 let clickedSentiment = null;
 let globalThread = null;
-let globalSentiment = null;
+let globalSentiment = "friendly";
 let emailMessageBox = null;
 let API_URL = "https://hey-addy.web.app";
 let currentUser = null;
+let currentlyWriting = false;
 
 chrome.storage.sync.get("user", async function(data) {
     if (!data.user) {
@@ -186,6 +187,10 @@ function filterThread(thread) {
     const messages = thread.messages;
     if (messages == undefined || !messages.length ||
         messages.length == undefined || messages.length < 1) {
+        alert(`Addy.ai\n
+            Please authorize addy.ai to use this GMail account
+        `)
+        getAuthToken();
         throw new Error("NoMessagesInThread");
     }
     // Iterate through messages
@@ -264,6 +269,28 @@ async function fetchThread(threadID) {
     return dataReceived;
 }
 
+async function displaySuggestionFetchError(messageBox, errorText) {
+    // const errorParagraph = document.createElement("p");
+    // errorParagraph.innerHTML = errorText;
+    // errorParagraph.style.position = "absolute";
+    // errorParagraph.style.color = "red";
+    // errorParagraph.style.top = "100%";
+    // errorParagraph.style.left = "50%";
+    // errorParagraph.style.marginLeft = "-5px";
+    // errorParagraph.style.borderWidth = "5px";
+    // errorParagraph.style.whiteSpace = "pre-wrap";
+    // messageBox.append(errorParagraph);
+    alert(errorText);
+
+    /*
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+    */
+
+}
+
 async function fetchSuggestion(requestData, endpoint) {
     // TODO: When there's a 401, ask user to login
     const data = requestData;
@@ -276,9 +303,18 @@ async function fetchSuggestion(requestData, endpoint) {
     .then((data) => {
         if (data.success) {
             suggestion = data.response;
+        } else {
+            displaySuggestionFetchError(
+                emailMessageBox, 
+                "Addy.ai\nService is down. Please try again soon.",
+            );
         }
     })
     .catch((error) => {
+        displaySuggestionFetchError(
+            emailMessageBox, 
+            "Addy.ai\nService is down. Please try again soon.",
+        );
         console.error('Error:', error);
     });
     return suggestion;
@@ -378,15 +414,84 @@ function createSentimentElementsInTooltip(sentiments, toolTip) {
             
             toolTip.append(sentimentElement); // Add sentiment
             // Click on the default sentiment
-            if (sentiment.tone == defaultTone) {
+            if (defaultTone && (sentiment.tone == defaultTone)) {
                 sentimentElement.dispatchEvent(clickEvent);
+            } else if (globalSentiment !== null 
+                && (globalSentiment == sentiment.tone)) {
+                    sentimentElement.dispatchEvent(clickEvent);
             }
         }
 
         // Create  the write button
         createWriteButtonInTooltip(toolTip);
+        // Create the three dots menu
+        createThreeDotsMenuInToolTip(toolTip);
         
     });
+}
+
+function createThreeDotsMenuInToolTip(tooltip) {
+    const threeDots = document.createElement("div");
+    threeDots.innerHTML = "•••";
+    threeDots.setAttribute("id", "three-dots");
+    threeDots.style = {};
+    // Add styles
+    addUnClickedStylesForThreeDots(threeDots);
+    setThreeDotsMouseHoverBehavior(threeDots);
+    setThreeDotsMouseOutBehavior(threeDots);
+
+    // On click listener
+    onThreeDotsClick(threeDots);
+    // Add to tooltip
+    tooltip.append(threeDots);
+}
+
+function onThreeDotsClick(threeDots) {
+    threeDots.addEventListener("click", () => {
+        // Add click styles
+        addClickedStylesForThreeDots(threeDots);
+        chrome.runtime.sendMessage({message: "open-options"});
+    })
+}
+
+function setThreeDotsMouseHoverBehavior(threeDots) {
+    threeDots.addEventListener('mouseover', () => {
+        addClickedStylesForThreeDots(threeDots);
+    });
+}
+function setThreeDotsMouseOutBehavior(threeDots) {
+    threeDots.addEventListener('mouseleave', () => {
+        addUnClickedStylesForThreeDots(threeDots);
+    });
+}
+
+function addUnClickedStylesForThreeDots(threeDots) {
+    threeDots.style.display = "flex";
+    threeDots.style.marginBottom = "8px";
+    threeDots.style.flexDirection = "row";
+    threeDots.style.justifyContent = "center";
+    threeDots.style.alignItems = "center";
+    threeDots.style.fontSize = "15px";
+    threeDots.style.borderRadius = "5px";
+    threeDots.style.cursor = "pointer";
+    threeDots.style.color = "#282828";
+    threeDots.style.backgroundColor = "transparent";
+    // threeDots.style.border = "1px solid rgba(111, 112, 112, 0.5)";
+    threeDots.style.border = "1px solid transparent";
+    threeDots.style.paddingLeft = "10px";
+    threeDots.style.paddingRight = "10px";
+    // threeDots.style.paddingTop = "2px";
+    // threeDots.style.paddingBottom = "3px";
+    threeDots.style.marginRight = "11px";
+    threeDots.style.fontFamily = "Helvetica, sans-serif";
+}
+
+function addClickedStylesForThreeDots(threeDots) {
+    threeDots.style.cursor = "pointer";
+    // threeDots.style.border = "1px solid rgba(116, 152, 225, 0.3)";
+    threeDots.style.backgroundColor = "rgba(116, 152, 225, 0.2)";
+    threeDots.style.cursor = "pointer";
+    threeDots.style.color = "#165BD1";
 }
 
 function createWriteButtonInTooltip(toolTip) {
@@ -409,21 +514,26 @@ function createWriteButtonInTooltip(toolTip) {
 // Onclick listener for write button
 async function addWriteButtonOnClickListener(writeButton) {
     writeButton.addEventListener("click", async () => {
+
         // Update styles
         addClickedStylesForWriteButton(writeButton);
         // Check if user has invite
         chrome.storage.sync.get("claimedInvite", async function(data) {
             if (!data.claimedInvite) {
-                // TODO: View for no invite
                 alert("Addy.ai \n\nNo invite code set.\nPlease open extension and enter your invite code");
                 return;
             }
-            // Make request
-            if (globalSentiment == null && globalThread == null) {
-                // TODO: Show user an error
-                alert("Sorry something went wrong. Are you signed in?");
+            if (globalSentiment == null) {
+                alert("Addy.ai \n\nPlease select a tone");
                 return;
             }
+            // Make request
+            if (globalThread == null) {
+                alert("Sorry something went wrong. Are you signed in?");
+                getAuthToken();
+                return;
+            }
+            
             const uid = currentUser == null ? undefined : currentUser.uid;
             const requestData = {
                 thread: globalThread,
@@ -431,17 +541,24 @@ async function addWriteButtonOnClickListener(writeButton) {
                 userID: uid,
             }
             // Fetch suggestion
+            if (currentlyWriting) return;
+            writeButton.innerHTML = "Thinking...";
             const suggestion = await fetchSuggestion(
                 requestData,
                 `${API_URL}/thread/response`
             )
+            currentlyWriting = true;
             if (suggestion && suggestion.length && suggestion.length > 1) {
-                console.log("sigg", suggestion);
+                
                 typeSuggestionInMessageBox(
                     emailMessageBox,
                     suggestion,
                     50, // 50ms, delay for each character typed
                 )
+                writeButton.innerHTML = "Write email";
+            } else {
+                writeButton.innerHTML = "Write email";
+                currentlyWriting = false;
             }
         });
     });
@@ -450,7 +567,6 @@ async function addWriteButtonOnClickListener(writeButton) {
 function typeSuggestionInMessageBox(messageBox, text, typingSpeed) {
     // Clear Message box
     messageBox.innerHTML = "<pre></pre>";
-
     var i = 0;
     function typer() {
         if (i < text.length) {
@@ -458,6 +574,7 @@ function typeSuggestionInMessageBox(messageBox, text, typingSpeed) {
             i++;
             setTimeout(typer, typingSpeed);
         }
+        if (i == text.length - 1) currentlyWriting = false;
     }
     typer();
 }

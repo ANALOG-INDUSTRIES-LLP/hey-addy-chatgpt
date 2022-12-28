@@ -53,12 +53,12 @@ body {
     display: block;
 }
 #chat-header-text {
-    background: linear-gradient(to right, #E040FB, #00BCD4);
-    /* background-color: #0258CC; */
+    /* background: linear-gradient(to right, #E040FB, #00BCD4); */
+    background-color: #745DDE;
     margin: 0;
     padding: 0;
     font-size: 20px;
-    /* font-weight: bold; */
+    font-weight: bold;
     /* background-image: radial-gradient(red, yellow, green); */
     -webkit-background-clip: text;
     -webkit-text-fill-color: transparent;
@@ -76,6 +76,27 @@ body {
     color: gray;
     margin: 0px;
     margin-bottom: 2px;
+}
+.three-dots {
+    width: 30px;
+    height: 30px;
+    display: flex;
+    flex-direction: column;
+    justify-content: center;
+    align-items: center;
+    font-size: 25px;
+    margin: 0px;
+    padding-bottom: 12px;
+    border-radius: 5px;
+    /* transition: 0.3s all ease; */
+    cursor: pointer;
+}
+.three-dots:hover {
+    color: #165BD1;
+    background-color: rgba(116, 152, 225, 0.2);
+    border: 1px solid rgba(116, 152, 225, 0.3);
+    /* transition: 0.3s all ease; */
+    cursor: pointer;
 }
 .error-text {
     color: red;
@@ -173,7 +194,8 @@ body {
 	letter-spacing: 0.2em;
     /* border: 1px solid red; */
     cursor: pointer;
-    background-image: linear-gradient(to right, #E040FB, #00BCD4);
+    background-color: #745DDE;;
+    /* background-image: linear-gradient(to right, #E040FB, #00BCD4); */
 	box-shadow: 0 4px 12px 0 rgba(152, 160, 180, 10);
     
 }
@@ -557,11 +579,14 @@ input[type="number"]:nth-child(n+4) {
 }
 #sign-out-btn {
     cursor: pointer;
+    transition: 0.2s all ease;
 }
 #contact-me-link {
     cursor: pointer;
     background-color: transparent;
+    transition: 0.2s all ease;
 }
 #contact-me-link:hover, #sign-out-btn:hover {
-    color: #165BD1;
+    color: #745DDE;
+    transition: 0.2s all ease;
 }

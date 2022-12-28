@@ -1,9 +1,9 @@
 {
     "manifest_version": 3,
     "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnX6+Wdqpma7fmQ9J2W99RX/9W2QLEKvkHWpHxzuQKwFYPvGNagDFajGyDY+0vz0JUSLZSBZok+qz0VIUuaYcU1g3iwYi94Qe/bJ0CMLRp8A6GSoyJkHhgRWDbzS0mSL3WIfKpsoQy3B2uIRLLEb5otMBnJJEOXA2pvUM9gvaQS35kBphdKgBrTCHMsk+Cxzi4i/L7z+whFW1ATrTA4rvbzgo77JlN3JtwemiEgmim3QFTRb6l05tizMVCTtSO/oYq+mmkjZEYXICP2EgNvAjB73mgsJSsBWmNeOWD1ZDOmafhyFEJx3EwNBDZBQl/KDhQ0MvNbuATi0+e4OiLV8z2QIDAQAB",
-    "name": "Email Assistant",
-    "version": "1.0.0",
-    "description": "A.I. Email Assistant Powered by OpenAI",
+    "name": "Addy.ai - A.I. Email Assistant",
+    "version": "1.0.1",
+    "description": "A.I. Email Assistant that drafts emails for you -Powered by OpenAI",
     "permissions": ["activeTab", "storage", "identity"],
     "action": {
         "default_icon": "assets/icon.png",
@@ -13,14 +13,10 @@
         {
             "matches": [
             "*://mail.google.com/*",
-            "*://inbox.google.com/*",
-            "http://*/*", "https://*/*"
+            "*://inbox.google.com/*"
             ],
             "js": [
             "tooltip.js"
-            ],
-            "css": [
-            "css/tooltip.css"
             ],
             "run_at": "document_end"
         }
@@ -30,9 +26,19 @@
         "48": "assets/icon48.png",
         "128": "assets/icon128.png"
     },
+    "options_ui": {
+        "page": "settings.html",
+        "open_in_tab": false
+    },
     "background": {
         "service_worker": "background.js"
     },
+    "web_accessible_resources": [
+        {
+          "resources": ["settings.html", "login.html", "main.html"],
+          "extension_ids": ["gldadickgmgciakdljkcpbdepehlilfn"]
+        }
+    ],
     "oauth2": {
         "client_id": "284266859441-d6kuhfsrr4sj63ms585km0m3rbc6i18e.apps.googleusercontent.com",
         "scopes":["https://www.googleapis.com/auth/gmail.readonly"]

@@ -24,6 +24,9 @@ chrome.runtime.onMessage.addListener((request, sender, sendResponse) => {
                 });
             });
             break;
+        case "open-options":
+            chrome.runtime.openOptionsPage();
+            break;
         default:
             chrome.action.setPopup({popup: "./login.html"}, () => {
                 sendResponse({message: "success"});

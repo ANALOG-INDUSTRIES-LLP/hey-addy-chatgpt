@@ -36,8 +36,8 @@ const uiConfig = {
             provider: firebase.auth.EmailAuthProvider.PROVIDER_ID,
         },
     ],
-    // tosUrl: '<your-tos-url>',
-    // privacyPolicyUrl: '<your-privacy-policy-url>'
+    tosUrl: "https://www.termsofservicegenerator.net/live.php?token=hnjiv0SH8AozMdR1lBm6W5TzoYNg1oo5",
+    privacyPolicyUrl: "https://www.freeprivacypolicy.com/live/0b9928b2-0d38-4e11-ae46-4c7b24350e7c"
 };
 
 // If user, show main content
