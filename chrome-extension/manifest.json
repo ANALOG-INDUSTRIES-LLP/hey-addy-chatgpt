@@ -2,7 +2,7 @@
     "manifest_version": 3,
     "key": "MIIBIjANBgkqhkiG9w0BAQEFAAOCAQ8AMIIBCgKCAQEAnX6+Wdqpma7fmQ9J2W99RX/9W2QLEKvkHWpHxzuQKwFYPvGNagDFajGyDY+0vz0JUSLZSBZok+qz0VIUuaYcU1g3iwYi94Qe/bJ0CMLRp8A6GSoyJkHhgRWDbzS0mSL3WIfKpsoQy3B2uIRLLEb5otMBnJJEOXA2pvUM9gvaQS35kBphdKgBrTCHMsk+Cxzi4i/L7z+whFW1ATrTA4rvbzgo77JlN3JtwemiEgmim3QFTRb6l05tizMVCTtSO/oYq+mmkjZEYXICP2EgNvAjB73mgsJSsBWmNeOWD1ZDOmafhyFEJx3EwNBDZBQl/KDhQ0MvNbuATi0+e4OiLV8z2QIDAQAB",
     "name": "Addy.ai - A.I. Email Assistant",
-    "version": "1.0.1",
+    "version": "1.0.3",
     "description": "A.I. Email Assistant that drafts emails for you -Powered by OpenAI",
     "permissions": ["activeTab", "storage", "identity"],
     "action": {

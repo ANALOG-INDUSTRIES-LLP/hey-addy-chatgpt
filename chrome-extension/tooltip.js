@@ -1,4 +1,5 @@
 let authToken = null;
+let gmailUser = null;
 let clickedSentiment = null;
 let globalThread = null;
 let globalSentiment = "friendly";
@@ -7,6 +8,7 @@ let API_URL = "https://hey-addy.web.app";
 let currentUser = null;
 let currentlyWriting = false;
 let onGoingOAuthAsks = 0;
+let onGoingGmailUserAsks = 0;
 
 function getCurrentUser() {
     chrome.storage.sync.get("user", async function(data) {
@@ -24,6 +26,7 @@ getCurrentUser();
 window.onload = async function() {
     getAuthToken() // Get gmail auth token
     main(); // Loads the tooltip bar
+
 }
 
 const sentiments = [
@@ -73,6 +76,30 @@ const sentiments = [
     }
 ];
 
+function getGmailUser() {
+    if (gmailUser !== null) return;
+    // Get gmail user
+    const elementSelector = 'a[aria-label^="Google Account:"]';
+    const userProfileButton = document.querySelector(elementSelector);
+    if (userProfileButton) {
+        const info = userProfileButton.ariaLabel;
+        const strInfo = String(info);
+        if (strInfo.includes("(")) {
+            // Split there
+            const splitInfo = strInfo.split("(");
+            const nameRaw = splitInfo[0];
+            const emailRaw = splitInfo[1];
+
+            const name = nameRaw.trim();
+            const email = emailRaw.slice(0, -1);
+
+            gmailUser = {
+                name: name,
+                email: email,
+            }
+        }
+    }
+}
 
 function getAuthToken() {
     // Get auth token from background.js
@@ -148,6 +175,8 @@ function addedNodes(mutations) {
 function addTooltipToElements(selector, settings, observer) {
     let messageBox = document.querySelector(selector);
     if (messageBox !== null) {
+        // Get Gmail User
+        getGmailUser();
         emailMessageBox = messageBox;
         // Get parent div 2 nodes up. First node does not have ID
         // to select
@@ -518,7 +547,7 @@ function createWriteButtonInTooltip(toolTip) {
 // Onclick listener for write button
 async function addWriteButtonOnClickListener(writeButton) {
     writeButton.addEventListener("click", async () => {
-
+        if (gmailUser == null) getGmailUser();
         // Update styles
         addClickedStylesForWriteButton(writeButton);
         if(currentUser == null) getCurrentUser();
@@ -549,6 +578,8 @@ async function addWriteButtonOnClickListener(writeButton) {
                 thread: globalThread,
                 sentiment: globalSentiment,
                 userID: uid,
+                email: gmailUser == null ? null : gmailUser.email,
+                gmailName: gmailUser == null ? null : gmailUser.name,
             }
             // Fetch suggestion
             if (currentlyWriting) return;
