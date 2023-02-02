@@ -1,15 +1,12 @@
 const express = require("express");
 const {requestContainsAllRequiredData} = require("../controllers/requestController");
-const Thread = require("../models/Thread");
-
-// Below recommended for cloud functions to format console logs
-require("firebase-functions/logger/compat");
+const ChatGPT = require("../models/Chatgpt");
 
 const router = express.Router();
 
-router.post("/response", async (request, response) => {
+router.post("/ask", async (request, response) => {
     // Thread message text is base64 encoded
-    const requiredParams = ["thread", "sentiment"];
+    const requiredParams = ["prompt"];
     // Parse JSON string
     request.body = (typeof request.body) == "string" ?
         JSON.parse(request.body) : request.body;
@@ -23,15 +20,11 @@ router.post("/response", async (request, response) => {
     }
 
     try {
-        const thread = request.body.thread;
-        // Sentiment is an object
-        const sentiment = request.body.sentiment.tone;
-        const suggestion = await Thread.getResponse(thread, sentiment);
-
-        // response.set("Cache-Control", "private, max-age=300, s-maxage=600");
+        const prompt = request.body.prompt;
+        const reply = await ChatGPT.getResponse(prompt);
         response.status(200).json({
             success: true,
-            response: suggestion,
+            response: reply,
         });
     } catch (error) {
         if (error.toString().includes("Not signed in")) {

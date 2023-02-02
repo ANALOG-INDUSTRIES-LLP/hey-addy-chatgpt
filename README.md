@@ -9,7 +9,7 @@ An email assistant powered by ChatGPT
 - Make a PR
 
 
-## How to set up
+## How to set up?
 - Clone Repo
 - Install Firebase CLI globally on your local machine
     - Run `npm install -g firebase-tools`
@@ -26,3 +26,8 @@ An email assistant powered by ChatGPT
 
 ## Credit
 - Unofficial Node.js API by transitive-bullshit et al. (https://github.com/transitive-bullshit/chatgpt-api)
+
+# Disclaimers for Privacy Policy
+- We do not associate your email address with the ChatGPT request (Your email address is always private)
+- We do not share your email address with ChatGPT (Your email address is private and only
+used for authorization to access email threads)

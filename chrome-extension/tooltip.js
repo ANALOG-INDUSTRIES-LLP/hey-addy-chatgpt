@@ -1,12 +1,32 @@
 let authToken = null;
+let gmailUser = null;
 let clickedSentiment = null;
 let globalThread = null;
-let globalSentiment = null;
-let API_URL = "http://localhost:5001/hey-addy-chatgpt/us-central1/api";
+let globalSentiment = "friendly";
+let emailMessageBox = null;
+let API_URL = "https://hey-addy.web.app";
+let currentUser = null;
+let currentlyWriting = false;
+let onGoingOAuthAsks = 0;
+let onGoingGmailUserAsks = 0;
+
+function getCurrentUser() {
+    chrome.storage.sync.get("user", async function(data) {
+        if (!data.user) {
+            currentUser = null;
+            return;
+        }
+        currentUser = data.user;
+    });
+}
+getCurrentUser();
+
+
 
 window.onload = async function() {
     getAuthToken() // Get gmail auth token
     main(); // Loads the tooltip bar
+
 }
 
 const sentiments = [
@@ -56,12 +76,41 @@ const sentiments = [
     }
 ];
 
+function getGmailUser() {
+    if (gmailUser !== null) return;
+    // Get gmail user
+    const elementSelector = 'a[aria-label^="Google Account:"]';
+    const userProfileButton = document.querySelector(elementSelector);
+    if (userProfileButton) {
+        const info = userProfileButton.ariaLabel;
+        const strInfo = String(info);
+        if (strInfo.includes("(")) {
+            // Split there
+            const splitInfo = strInfo.split("(");
+            const nameRaw = splitInfo[0];
+            const emailRaw = splitInfo[1];
+
+            const name = nameRaw.trim();
+            const email = emailRaw.slice(0, -1);
+
+            gmailUser = {
+                name: name,
+                email: email,
+            }
+        }
+    }
+}
 
 function getAuthToken() {
     // Get auth token from background.js
+    if (authToken !== null) return;
+    if (onGoingOAuthAsks > 5) return;
     chrome.runtime.sendMessage({ message: "get-auth-token" }, function (response) {
+        onGoingOAuthAsks += 1;
         if (response.message && response.message == "success") {
             authToken = response.token;
+            onGoingOAuthAsks = 0;
+            if (globalThread == null) findEmailThread();
         }
     });
 }
@@ -126,6 +175,9 @@ function addedNodes(mutations) {
 function addTooltipToElements(selector, settings, observer) {
     let messageBox = document.querySelector(selector);
     if (messageBox !== null) {
+        // Get Gmail User
+        getGmailUser();
+        emailMessageBox = messageBox;
         // Get parent div 2 nodes up. First node does not have ID
         // to select
         const parentDiv = messageBox.parentNode.parentNode;
@@ -133,6 +185,9 @@ function addTooltipToElements(selector, settings, observer) {
 
         const parent = document.getElementById(parentID);
         const toolTipDiv = document.createElement("div");
+        // Make emailMessageBox allow line breaks
+        messageBox.style.whiteSpace = "pre-wrap";
+
         // Configure ToolTipDiv
         configureToolTipDiv(toolTipDiv);
         // Create the Sentiment Elements
@@ -143,9 +198,9 @@ function addTooltipToElements(selector, settings, observer) {
             toolTipDiv
         )
         findEmailThread();
+
         return true;
     } else {
-        // alert("no message box");
         return false;
     }
 }
@@ -154,8 +209,9 @@ async function findEmailThread() {
     const legacyThreadElement = document.querySelector('[data-legacy-thread-id]');
     if (!legacyThreadElement || legacyThreadElement == null
         || legacyThreadElement == undefined) {
-        // TODO: Send a message that legacy thread data not found
+        globalThread == null;
     }
+    if (globalThread !== null) return;
 
     const threadID = legacyThreadElement.getAttribute('data-legacy-thread-id');
     let thread = await fetchThread(threadID);
@@ -221,7 +277,10 @@ function filterThread(thread) {
 
 async function fetchThread(threadID) {
     // Check if we have an auth token
-    if (authToken == null) throw new Error("AuthTokenIsNull");
+    if (authToken == null) {
+        getAuthToken();
+        throw new Error("AuthTokenIsNull");
+    }
     const config = {
         method: 'GET',
         async: true,
@@ -243,10 +302,32 @@ async function fetchThread(threadID) {
     return dataReceived;
 }
 
+async function displaySuggestionFetchError(messageBox, errorText) {
+    // const errorParagraph = document.createElement("p");
+    // errorParagraph.innerHTML = errorText;
+    // errorParagraph.style.position = "absolute";
+    // errorParagraph.style.color = "red";
+    // errorParagraph.style.top = "100%";
+    // errorParagraph.style.left = "50%";
+    // errorParagraph.style.marginLeft = "-5px";
+    // errorParagraph.style.borderWidth = "5px";
+    // errorParagraph.style.whiteSpace = "pre-wrap";
+    // messageBox.append(errorParagraph);
+    alert(errorText);
+
+    /*
+        top: 100%;
+        left: 50%;
+        margin-left: -5px;
+        border-width: 5px;
+    */
+
+}
+
 async function fetchSuggestion(requestData, endpoint) {
-    // TODO: Throttle requests by adding identity or user headers
+    // TODO: When there's a 401, ask user to login
     const data = requestData;
-    let suggestion = {};
+    let suggestion = "";
     await fetch(endpoint, {
         method: 'POST',
         body: JSON.stringify(data),
@@ -254,11 +335,19 @@ async function fetchSuggestion(requestData, endpoint) {
     .then((response) => response.json())
     .then((data) => {
         if (data.success) {
-            // Successful response
-            console.log(data);
+            suggestion = data.response;
+        } else {
+            displaySuggestionFetchError(
+                emailMessageBox, 
+                "Addy.ai\nService is down. Please try again soon.",
+            );
         }
     })
     .catch((error) => {
+        displaySuggestionFetchError(
+            emailMessageBox, 
+            "Addy.ai\nService is down. Please try again soon.",
+        );
         console.error('Error:', error);
     });
     return suggestion;
@@ -276,34 +365,166 @@ function configureToolTipDiv(toolTipDiv) {
     toolTipDiv.style.width = "100%"; 
 }
 
-function createSentimentElementsInTooltip(sentiments, toolTip) {
-    for (let i = 0; i < sentiments.length; i++) {
-        if(i > 4) continue;
-        let sentiment = sentiments[i] // Full object with attributes
-        const sentimentElement = document.createElement("div");
-        sentimentElement.classList.add("sentiment-button");
-        const HTMLValue = sentiment.html +
-            "&nbsp;"+
-            stringSentenceCase(sentiment.tone);
-        sentimentElement.innerHTML = HTMLValue;
-        const sentimentID = "hey-addy-sentiment-" + i.toString();
-        sentimentElement.setAttribute("id", sentimentID);
-        sentimentElement.style = {};
-        // Add styles
-        addUnclickedStylesForSentimentButton(sentimentElement);
-
-        // Add mouse over and leave behavior
-        setSentimentMouseHoverBehavior(sentimentElement);
-        setSentimentMouseOutBehavior(sentimentElement);
-
-        // Add a listener to the sentiment element
-        addSentimentOnClickListener(sentimentElement, sentiment);
-        
-        toolTip.append(sentimentElement); // Add sentiment
+function titleCase(str) {
+    var splitStr = str.toLowerCase().split(' ');
+    for (var i = 0; i < splitStr.length; i++) {
+        splitStr[i] = splitStr[i].charAt(0).toUpperCase() + splitStr[i].substring(1);     
     }
+    return splitStr.join(' '); 
+}
 
-    // Create  the write button
-    createWriteButtonInTooltip(toolTip);
+function swapSentiments(sentiment1, sentiment2) {
+    // Find both indices and swap;
+    const index1 = findSentimentIndex(sentiments, sentiment1);
+    const index2 = findSentimentIndex(sentiments, sentiment2);
+
+    if ((index1 == null || index2 == null) || index2 < 4) {
+        return sentiments;
+    }
+    // Both indices are available, swap
+    let temp = sentiments[index1];
+    sentiments[index1] = sentiments[index2];
+    sentiment2[index2] = temp;
+    return sentiments;
+
+}
+
+function findSentimentIndex(sentiments, value) {
+    let index = null;
+    for (let i = 0; i < sentiments.length; i++) {
+        if (sentiments[i].tone == value) {
+            index = i;
+            break;
+        }
+    }
+    return index;
+}
+
+var clickEvent = new MouseEvent("click", {
+    "view": window,
+    "bubbles": true,
+    "cancelable": false
+});
+
+function createSentimentElementsInTooltip(sentiments, toolTip) {
+    // Check if there's a default sentiment
+    chrome.storage.sync.get("defaultTone", async function(data) {
+        const defaultTone = data.defaultTone;
+        if (defaultTone) {
+            // Set global sentiment to default tone
+            globalSentiment = defaultTone;
+            // Render default tone in UI
+            // Swap first sentiment in list with default sentiment
+            const firstSentiment = sentiments[0].tone;
+            if (firstSentiment !== defaultTone) {
+                // Swap
+                sentiments = swapSentiments(firstSentiment,
+                    defaultTone);
+            }
+
+        }
+        for (let i = 0; i < sentiments.length; i++) {
+            if(i > 4) break;
+            let sentiment = sentiments[i] // Full object with attributes
+            const sentimentElement = document.createElement("div");
+            sentimentElement.classList.add("sentiment-button");
+            const HTMLValue = sentiment.html +
+                "&nbsp;"+
+                titleCase(sentiment.tone);
+            sentimentElement.innerHTML = HTMLValue;
+            const sentimentID = "hey-addy-sentiment-" + i.toString();
+            sentimentElement.setAttribute("id", sentimentID);
+            sentimentElement.style = {};
+            // Add styles
+            addUnclickedStylesForSentimentButton(sentimentElement);
+
+            // Add mouse over and leave behavior
+            setSentimentMouseHoverBehavior(sentimentElement);
+            setSentimentMouseOutBehavior(sentimentElement);
+
+            // Add a listener to the sentiment element
+            addSentimentOnClickListener(sentimentElement, sentiment);
+            
+            toolTip.append(sentimentElement); // Add sentiment
+            // Click on the default sentiment
+            if (defaultTone && (sentiment.tone == defaultTone)) {
+                sentimentElement.dispatchEvent(clickEvent);
+            } else if (globalSentiment !== null 
+                && (globalSentiment == sentiment.tone)) {
+                    sentimentElement.dispatchEvent(clickEvent);
+            }
+        }
+
+        // Create  the write button
+        createWriteButtonInTooltip(toolTip);
+        // Create the three dots menu
+        createThreeDotsMenuInToolTip(toolTip);
+        
+    });
+}
+
+function createThreeDotsMenuInToolTip(tooltip) {
+    const threeDots = document.createElement("div");
+    threeDots.innerHTML = "•••";
+    threeDots.setAttribute("id", "three-dots");
+    threeDots.style = {};
+    // Add styles
+    addUnClickedStylesForThreeDots(threeDots);
+    setThreeDotsMouseHoverBehavior(threeDots);
+    setThreeDotsMouseOutBehavior(threeDots);
+
+    // On click listener
+    onThreeDotsClick(threeDots);
+    // Add to tooltip
+    tooltip.append(threeDots);
+}
+
+function onThreeDotsClick(threeDots) {
+    threeDots.addEventListener("click", () => {
+        // Add click styles
+        addClickedStylesForThreeDots(threeDots);
+        chrome.runtime.sendMessage({message: "open-options"});
+    })
+}
+
+function setThreeDotsMouseHoverBehavior(threeDots) {
+    threeDots.addEventListener('mouseover', () => {
+        addClickedStylesForThreeDots(threeDots);
+    });
+}
+function setThreeDotsMouseOutBehavior(threeDots) {
+    threeDots.addEventListener('mouseleave', () => {
+        addUnClickedStylesForThreeDots(threeDots);
+    });
+}
+
+function addUnClickedStylesForThreeDots(threeDots) {
+    threeDots.style.display = "flex";
+    threeDots.style.marginBottom = "8px";
+    threeDots.style.flexDirection = "row";
+    threeDots.style.justifyContent = "center";
+    threeDots.style.alignItems = "center";
+    threeDots.style.fontSize = "15px";
+    threeDots.style.borderRadius = "5px";
+    threeDots.style.cursor = "pointer";
+    threeDots.style.color = "#282828";
+    threeDots.style.backgroundColor = "transparent";
+    // threeDots.style.border = "1px solid rgba(111, 112, 112, 0.5)";
+    threeDots.style.border = "1px solid transparent";
+    threeDots.style.paddingLeft = "10px";
+    threeDots.style.paddingRight = "10px";
+    // threeDots.style.paddingTop = "2px";
+    // threeDots.style.paddingBottom = "3px";
+    threeDots.style.marginRight = "11px";
+    threeDots.style.fontFamily = "Helvetica, sans-serif";
+}
+
+function addClickedStylesForThreeDots(threeDots) {
+    threeDots.style.cursor = "pointer";
+    // threeDots.style.border = "1px solid rgba(116, 152, 225, 0.3)";
+    threeDots.style.backgroundColor = "rgba(116, 152, 225, 0.2)";
+    threeDots.style.cursor = "pointer";
+    threeDots.style.color = "#165BD1";
 }
 
 function createWriteButtonInTooltip(toolTip) {
@@ -321,32 +542,82 @@ function createWriteButtonInTooltip(toolTip) {
     // Add a listener to the sentiment element
     addWriteButtonOnClickListener(writeButton, {});
     toolTip.append(writeButton);
-    
 }
 
 // Onclick listener for write button
 async function addWriteButtonOnClickListener(writeButton) {
     writeButton.addEventListener("click", async () => {
-       // Update styles
-       addClickedStylesForWriteButton(writeButton);
-        // Make request
-        if (globalSentiment == null && globalThread == null) {
-            // TODO: Show user an error
-            return;
-        }
-        const requestData = {
-            thread: globalThread,
-            sentiment: globalSentiment,
-        }
-        // Fetch suggestion
-        const suggestion = await fetchSuggestion(
-            requestData,
-            `${API_URL}/thread/response`
-        )
-        console.log("suggestion ", suggestion);
-
-        
+        if (gmailUser == null) getGmailUser();
+        // Update styles
+        addClickedStylesForWriteButton(writeButton);
+        if(currentUser == null) getCurrentUser();
+        // Check if user has invite
+        chrome.storage.sync.get("claimedInvite", async function(data) {
+            if (!data.claimedInvite) {
+                chrome.runtime.sendMessage({message: "open-options"});
+                return;
+            }
+            if (globalSentiment == null) {
+                alert("Addy.ai \n\nPlease select a tone");
+                return;
+            }
+            if (authToken == null) {
+                alert("Addy.ai \nA Google OAuth window should open. \nPlease authorize Addy.ai to use this GMail account");
+                getAuthToken();
+                return;
+            }
+            // Make request
+            if (globalThread == null) {
+                alert("Sorry something went wrong. Are you signed in?");
+                findEmailThread();
+                return;
+            }
+            
+            const uid = currentUser == null ? undefined : currentUser.uid;
+            const requestData = {
+                thread: globalThread,
+                sentiment: globalSentiment,
+                userID: uid,
+                email: gmailUser == null ? null : gmailUser.email,
+                gmailName: gmailUser == null ? null : gmailUser.name,
+            }
+            // Fetch suggestion
+            if (currentlyWriting) return;
+            writeButton.innerHTML = "Thinking...";
+            const suggestion = await fetchSuggestion(
+                requestData,
+                `${API_URL}/thread/response`
+            )
+            currentlyWriting = true;
+            if (suggestion && suggestion.length && suggestion.length > 1) {
+                
+                typeSuggestionInMessageBox(
+                    emailMessageBox,
+                    suggestion,
+                    50, // 50ms, delay for each character typed
+                )
+                writeButton.innerHTML = "Write email";
+            } else {
+                writeButton.innerHTML = "Write email";
+                currentlyWriting = false;
+            }
+        });
     });
+}
+
+function typeSuggestionInMessageBox(messageBox, text, typingSpeed) {
+    // Clear Message box
+    messageBox.innerHTML = "<pre></pre>";
+    var i = 0;
+    function typer() {
+        if (i < text.length) {
+            messageBox.innerHTML += text.charAt(i);
+            i++;
+            setTimeout(typer, typingSpeed);
+        }
+        if (i == text.length - 1) currentlyWriting = false;
+    }
+    typer();
 }
 
 function setWriteButtonMouseHoverBehavior(writeButton) {

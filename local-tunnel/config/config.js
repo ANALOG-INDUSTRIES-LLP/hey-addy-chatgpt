@@ -10,12 +10,12 @@ const apiAccessClientAddresses = [
     "http://localhost:3000",
     "http://localhost:3001",
     "http://localhost:5000",
+    "http://localhost:5001",
+    // "http://localhost:5001",
+    // TODO: Add production api route one
+    "https://hey-addy.web.app",
+    process.env.API_FUNCTIONS_URL,
     "localhost",
-    "http://mail.google.com",
-    "https://mail.google.com",
-    "http://inbox.google.com",
-    "https://inbox.google.com",
-    "chrome-extension://gldadickgmgciakdljkcpbdepehlilfn",
 ];
 
 module.exports = {

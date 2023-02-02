@@ -1,33 +1,36 @@
-"use strict"
+const Firestore = require("./firebaseFirestore");
+const axios = require("axios");
 
-const globalConfig = require("../config/config");
-const EMAIL = globalConfig.EMAIL;
-const PASSWORD = globalConfig.PASSWORD;
-
-
+const db = new Firestore();
 
 class ChatGPTClient {
-    constructor() {
-        this.email = EMAIL;
-        this.password = PASSWORD;
-    }
-
-    async ask(prompt) {
-        return await (async () => {
-            const { ChatGPTAPI, getOpenAIAuth } = await import("chatgpt");
-            const openAIAuth = await getOpenAIAuth({
-                email: this.email,
-                password: this.password,
-            });
-
-            const api = new ChatGPTAPI({...openAIAuth});
-            await api.ensureAuth();
-
-            const response = await api.sendMessage(
-                prompt
-            );
-            return response;
-          })();
+    static async getResponse(prompt) {
+        const tunnelDoc = await db.getDocInCollection("whereis", "string-types");
+        if (!tunnelDoc || tunnelDoc == undefined) {
+            return undefined;
+        }
+        const url = `${tunnelDoc.tunnel}/chatgpt/ask`;
+        // Make request to tunnel url to get response
+        const body = {
+            prompt: prompt,
+        };
+        const response = await axios.post(url, body, {
+            headers: {
+                "Bypass-Tunnel-Reminder": true,
+                "ngrok-skip-browser-warning": true,
+            },
+        }).then(async (response) => {
+            if (response.data.success) {
+                return response.data.response;
+            } else {
+                return undefined;
+            }
+        }).catch((error) => {
+            // TODO: Alert on call
+            console.log(error);
+            return undefined;
+        });
+        return response;
     }
 }
 
